@@ -4510,6 +4510,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "trash",
+ "zbus",
 ]
 
 [[package]]

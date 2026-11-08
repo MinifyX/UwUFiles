@@ -115,8 +115,54 @@ export function installMock() {
               removable: true,
             },
           ],
+          network: [
+            {
+              path: '/mnt/Backups',
+              protocol: 'nfs',
+              source: 'nas.local:/volume1/Backups',
+              version: '4.1',
+            },
+          ],
           trash: true,
         };
+      case 'network_discover':
+        return new Promise((r) =>
+          setTimeout(
+            () =>
+              r([
+                { name: 'Nyus NAS', host: '192.168.1.20', protocols: ['smb', 'nfs'] },
+                { name: 'Wohnzimmer-PC', host: '192.168.1.31', protocols: ['smb'] },
+              ]),
+            600,
+          ),
+        );
+      case 'network_shares':
+        return ['daten', 'Filme', 'Fotos', 'home'];
+      case 'network_exports':
+        return [
+          { path: '/volume1/Backups', clients: ['192.168.1.0/24'] },
+          { path: '/volume1/ISO', clients: ['*'] },
+        ];
+      case 'network_connect': {
+        const share = a.share as { protocol: string; share: string; host: string };
+        if (a.password === 'falsch')
+          return Promise.reject('Benutzername oder Passwort stimmen nicht.');
+        const name = share.share.split('/').filter(Boolean).pop();
+        return new Promise((r) =>
+          setTimeout(
+            () =>
+              r(
+                share.protocol === 'nfs'
+                  ? { path: `/mnt/${name}`, how: 'NFS 4.2' }
+                  : {
+                      path: `/run/user/1000/kio-fuse-AbCdEf/smb/nyu@${share.host}/${name}`,
+                      how: 'SMB über KDE',
+                    },
+              ),
+            700,
+          ),
+        );
+      }
       case 'list_dir':
         return entries(a.path as string, a.showHidden as boolean);
       case 'entry_info':

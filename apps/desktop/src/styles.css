@@ -19,6 +19,14 @@ body {
   overflow: hidden;
 }
 
+/*
+ * The suite's Dialog pads its title and footer (24 px) but not the body between them, so every
+ * dialog's content sat flush against the edge. One rule here keeps them all in line.
+ */
+dialog > div > .overflow-y-auto {
+  padding: 4px 24px 20px;
+}
+
 /* Thin, rounded scroll bars in the suite's colours. */
 .uwu-scroll {
   scrollbar-width: thin;

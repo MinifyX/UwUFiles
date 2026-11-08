@@ -15,6 +15,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter as _, Manager as _, State};
 use uwufiles_core::apps::{self, App};
 use uwufiles_core::listing::{self, Entry};
+use uwufiles_core::network::{self, Connected, Export, Mounted, NfsSetup, Protocol, Server, Share};
 use uwufiles_core::ops::{self, Conflict, Progress, Transfer};
 use uwufiles_core::places::{self, Drive, Place};
 use uwufiles_core::trashbin::{self, TrashEntry};
@@ -33,6 +34,8 @@ struct AppState {
 struct Sidebar {
     places: Vec<Place>,
     drives: Vec<Drive>,
+    /// SMB and NFS shares the kernel has mounted.
+    network: Vec<Mounted>,
     /// Whether the system has a trash the window can show and restore from.
     trash: bool,
 }
@@ -73,6 +76,7 @@ fn sidebar() -> Sidebar {
     Sidebar {
         places: places::places(),
         drives: places::drives(),
+        network: network::mounted(),
         trash: trashbin::SUPPORTED,
     }
 }
@@ -351,6 +355,161 @@ fn watch_dir(app: AppHandle, state: State<'_, AppState>, path: PathBuf) -> Resul
     Ok(())
 }
 
+// ---- network shares ----------------------------------------------------------------------------
+
+#[tauri::command]
+async fn network_discover() -> Result<Vec<Server>> {
+    blocking(|| Ok(network::discover())).await
+}
+
+#[tauri::command]
+async fn network_exports(host: String) -> Result<Vec<Export>> {
+    blocking(move || network::nfs_exports(&host)).await
+}
+
+#[tauri::command]
+async fn network_shares(
+    host: String,
+    user: Option<String>,
+    password: Option<String>,
+    domain: Option<String>,
+) -> Result<Vec<String>> {
+    blocking(move || {
+        network::smb_shares(
+            &host,
+            user.as_deref(),
+            password.as_deref(),
+            domain.as_deref(),
+        )
+    })
+    .await
+}
+
+/// Connects `share` and says where it is now. Without a password the keyring is asked; with
+/// `remember` the password goes into it. NFS asks for the admin password once, to add its fstab line.
+#[tauri::command]
+async fn network_connect(
+    share: Share,
+    password: Option<String>,
+    remember: bool,
+) -> Result<Connected> {
+    blocking(move || {
+        let connected = match share.protocol {
+            Protocol::Smb => {
+                let password = password
+                    .clone()
+                    .filter(|p| !p.is_empty())
+                    .or_else(|| network::secrets::lookup(&share));
+                network::connect_smb(&share, password.as_deref())?
+            }
+            Protocol::Nfs => {
+                let fstab = std::fs::read_to_string("/etc/fstab").unwrap_or_default();
+                let point = match network::nfs_setup(&share, &fstab)? {
+                    NfsSetup::Ready { mount_point } => mount_point,
+                    NfsSetup::NeedsEntry { mount_point, line } => {
+                        as_root(&["--fstab-add", &line])?;
+                        mount_point
+                    }
+                };
+                network::mount_nfs(&share, &point)?
+            }
+        };
+        if remember {
+            if let Some(p) = password.filter(|p| !p.is_empty()) {
+                network::secrets::store(&share, &p)?;
+            }
+        }
+        Ok(connected)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn network_disconnect(path: PathBuf) -> Result<()> {
+    blocking(move || network::disconnect(&path)).await
+}
+
+/// The share is removed from the sidebar: its password leaves the keyring, and an NFS share's
+/// fstab line (if UwUFiles wrote it) goes too.
+#[tauri::command]
+async fn network_forget(share: Share) -> Result<()> {
+    blocking(move || {
+        network::secrets::forget(&share);
+        if share.protocol == Protocol::Nfs {
+            let fstab = std::fs::read_to_string("/etc/fstab").unwrap_or_default();
+            let source = share.address();
+            if network::fstab_without(&fstab, &source) != fstab {
+                if let Some(m) = network::mounted_at(&share) {
+                    let _ = network::disconnect(&m.path);
+                }
+                as_root(&["--fstab-remove", &source])?;
+            }
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// Runs this program again as root through pkexec (the desktop asks for the admin password).
+fn as_root(args: &[&str]) -> Result<()> {
+    let exe = std::env::current_exe().map_err(|e| Error::io("uwufiles", e))?;
+    let out = std::process::Command::new("pkexec")
+        .arg(&exe)
+        .args(args)
+        .output()
+        .map_err(|_| Error::Network("Dafür fehlt pkexec (polkit) auf diesem System.".into()))?;
+    match out.status.code() {
+        Some(0) => Ok(()),
+        // 126: the dialog was closed, 127: not authorized.
+        Some(126) | Some(127) => Err(Error::Cancelled),
+        _ => Err(Error::Network(format!(
+            "/etc/fstab ließ sich nicht ändern: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ))),
+    }
+}
+
+/// `uwufiles --fstab-add <line>` / `--fstab-remove <source>`, run as root by [`as_root`]. Only
+/// lines `network::fstab_with` accepts get in; the old file is kept as /etc/fstab.uwufiles-bak.
+pub fn fstab_helper() -> Option<i32> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let (flag, value) = match args.as_slice() {
+        [flag, value] if flag == "--fstab-add" || flag == "--fstab-remove" => (flag, value),
+        _ => return None,
+    };
+    let run = || -> std::result::Result<(), String> {
+        let path = Path::new("/etc/fstab");
+        let old = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let new = if flag == "--fstab-add" {
+            let new = network::fstab_with(&old, value).map_err(|e| e.to_string())?;
+            let point = value.split_whitespace().nth(1).unwrap_or_default();
+            let point = network::unescape_octal(point);
+            if !point.starts_with("/mnt/") {
+                return Err(format!("{point} liegt nicht unter /mnt"));
+            }
+            std::fs::create_dir_all(&point).map_err(|e| e.to_string())?;
+            new
+        } else {
+            network::fstab_without(&old, value)
+        };
+        std::fs::write("/etc/fstab.uwufiles-bak", &old).map_err(|e| e.to_string())?;
+        let tmp = Path::new("/etc/.fstab.uwufiles");
+        std::fs::write(tmp, new).map_err(|e| e.to_string())?;
+        std::fs::rename(tmp, path).map_err(|e| e.to_string())?;
+        let _ = std::process::Command::new("systemctl")
+            .arg("daemon-reload")
+            .status();
+        Ok(())
+    };
+    Some(match run() {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("{e}");
+            1
+        }
+    })
+}
+
 /// A folder from the command line: a path or a `file://` URI. A file opens its folder.
 fn folder_argument(arg: &str) -> Option<PathBuf> {
     if arg.starts_with('-') {
@@ -433,6 +592,12 @@ pub fn run() {
             check_update,
             install_update,
             watch_dir,
+            network_discover,
+            network_exports,
+            network_shares,
+            network_connect,
+            network_disconnect,
+            network_forget,
         ])
         .run(tauri::generate_context!())
         .expect("UwUFiles could not start");

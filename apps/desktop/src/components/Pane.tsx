@@ -16,7 +16,7 @@ import {
   type MouseEvent,
 } from 'react';
 import { api, errorText, onDirChanged, TRASH, type Entry, type TransferMode } from '../lib/api';
-import { formatBytes, formatCount, parentOf } from '../lib/format';
+import { formatBytes, formatCount, parentOf, rootFor } from '../lib/format';
 import { setSettings, type Settings } from '../lib/settings';
 import type { Shell } from '../lib/shell';
 import { ContextMenu, type ContextItem } from './ContextMenu';
@@ -274,8 +274,10 @@ export function Pane({ active, initialPath, nav, onPath, shell }: Props) {
     e.dataTransfer.effectAllowed = 'copyMove';
   };
 
+  // A network share's folder is as high as it goes: above it is kio-fuse's or gvfs' plumbing.
+  const upOf = (p: string) => (rootFor(p)?.path === p ? null : parentOf(p));
   const goUp = () => {
-    const up = parentOf(path);
+    const up = upOf(path);
     if (up && !inTrash) {
       selectAfterLoad.current = path;
       navigate(up);
@@ -543,7 +545,7 @@ export function Pane({ active, initialPath, nav, onPath, shell }: Props) {
           home={shell.home}
           canBack={back.length > 0}
           canForward={forward.length > 0}
-          canUp={parentOf(path) != null}
+          canUp={upOf(path) != null}
           onBack={goBack}
           onForward={goForward}
           onUp={goUp}

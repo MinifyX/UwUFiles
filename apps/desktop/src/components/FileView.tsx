@@ -303,7 +303,7 @@ const COLUMNS: { by: SortBy; label: string; className: string }[] = [
 function ListView(props: Props) {
   const { settings: s } = props;
   return (
-    <div data-background="1" className="@container flex min-h-full flex-col px-3 pb-4">
+    <div data-background="1" className="@container flex min-h-full flex-col pr-4 pl-3 pb-4">
       <div className="sticky top-0 z-[2] flex items-center gap-3 border-b border-hairline bg-surface px-3 py-2 text-caption font-semibold text-muted">
         <span className="w-6" />
         {COLUMNS.map((c) => (

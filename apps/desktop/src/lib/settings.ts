@@ -3,6 +3,7 @@
  * `bootScript()` reads in main.tsx, so the first paint is already in the right theme.
  */
 
+import type { Share } from './api';
 import type { ContrastSetting, MotionSetting, ThemeSetting } from '@uwusuite/design';
 import { useSyncExternalStore } from 'react';
 
@@ -33,6 +34,14 @@ export interface Settings {
   details: boolean;
   /** Folders pinned to the sidebar under "Favoriten". */
   favorites: string[];
+  /** Network shares in the sidebar under "Netzwerk". Passwords are in the keyring, not here. */
+  shares: SavedShare[];
+}
+
+export interface SavedShare extends Share {
+  id: string;
+  /** What the sidebar says: the share's name unless the user named it. */
+  label: string;
 }
 
 const DEFAULTS: Settings = {
@@ -51,6 +60,7 @@ const DEFAULTS: Settings = {
   foldersFirst: true,
   details: true,
   favorites: [],
+  shares: [],
 };
 
 function load(): Settings {

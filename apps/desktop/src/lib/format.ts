@@ -50,16 +50,38 @@ export function joinPath(dir: string, name: string): string {
 }
 
 /** The breadcrumb: every folder from the root down to `path`, with the home folder as "~". */
-export function crumbs(path: string, home: string | null): { name: string; path: string }[] {
-  const out: { name: string; path: string }[] = [];
+/**
+ * Folders that stand for something else: a connected network share lives under a path like
+ * `/run/user/1000/kio-fuse-AbC/smb/mini@nas/daten`, but the path bar and tab say "daten".
+ */
+let roots: { path: string; name: string }[] = [];
+export function setRoots(next: { path: string; name: string }[]) {
+  roots = [...next].sort((a, b) => b.path.length - a.path.length);
+}
+export function rootFor(path: string) {
+  return roots.find((r) => path === r.path || path.startsWith(r.path + SEP));
+}
+
+export type CrumbIcon = 'home' | 'drive' | 'network';
+
+export function crumbs(
+  path: string,
+  home: string | null,
+): { name: string; path: string; icon?: CrumbIcon }[] {
+  const out: { name: string; path: string; icon?: CrumbIcon }[] = [];
   let rest = path;
   let base = '/';
-  if (home && (path === home || path.startsWith(home + SEP))) {
-    out.push({ name: 'Persönlicher Ordner', path: home });
+  const root = rootFor(path);
+  if (root) {
+    out.push({ name: root.name, path: root.path, icon: 'network' });
+    rest = path.slice(root.path.length);
+    base = root.path;
+  } else if (home && (path === home || path.startsWith(home + SEP))) {
+    out.push({ name: 'Persönlicher Ordner', path: home, icon: 'home' });
     rest = path.slice(home.length);
     base = home;
   } else {
-    out.push({ name: 'System', path: '/' });
+    out.push({ name: 'System', path: '/', icon: 'drive' });
   }
   for (const part of rest.split(/[\\/]/).filter(Boolean)) {
     base = joinPath(base, part);
