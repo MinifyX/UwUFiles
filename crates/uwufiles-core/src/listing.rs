@@ -47,15 +47,15 @@ impl Kind {
             _ => return Kind::Other,
         };
         match ext.as_str() {
-            "png" | "jpg" | "jpeg" | "gif" | "webp" | "avif" | "bmp" | "svg" | "ico" | "heic" | "tif"
-            | "tiff" => Kind::Image,
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "avif" | "bmp" | "svg" | "ico" | "heic"
+            | "tif" | "tiff" => Kind::Image,
             "mp4" | "mkv" | "webm" | "mov" | "avi" | "m4v" | "wmv" | "flv" => Kind::Video,
             "mp3" | "flac" | "ogg" | "opus" | "wav" | "m4a" | "aac" | "wma" => Kind::Audio,
             "zip" | "tar" | "gz" | "tgz" | "xz" | "zst" | "bz2" | "7z" | "rar" | "deb" | "rpm"
             | "iso" | "appimage" => Kind::Archive,
-            "rs" | "ts" | "tsx" | "js" | "jsx" | "mjs" | "py" | "c" | "h" | "cpp" | "hpp" | "go"
-            | "java" | "kt" | "swift" | "sh" | "fish" | "zsh" | "lua" | "rb" | "php" | "cs"
-            | "html" | "css" | "scss" | "json" | "toml" | "yaml" | "yml" | "xml" | "sql" => {
+            "rs" | "ts" | "tsx" | "js" | "jsx" | "mjs" | "py" | "c" | "h" | "cpp" | "hpp"
+            | "go" | "java" | "kt" | "swift" | "sh" | "fish" | "zsh" | "lua" | "rb" | "php"
+            | "cs" | "html" | "css" | "scss" | "json" | "toml" | "yaml" | "yml" | "xml" | "sql" => {
                 Kind::Code
             }
             "pdf" | "doc" | "docx" | "odt" | "rtf" | "epub" | "ppt" | "pptx" | "odp" => {
@@ -77,7 +77,11 @@ pub fn list(dir: &Path, show_hidden: bool) -> Result<Vec<Entry>> {
         .filter_map(|item| entry(&item.path()))
         .filter(|e| show_hidden || !e.hidden)
         .collect();
-    entries.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| natural_cmp(&a.name, &b.name)));
+    entries.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then_with(|| natural_cmp(&a.name, &b.name))
+    });
     Ok(entries)
 }
 
@@ -86,7 +90,11 @@ pub fn entry(path: &Path) -> Option<Entry> {
     let link = fs::symlink_metadata(path).ok()?;
     let is_symlink = link.file_type().is_symlink();
     // A link shows what it points at; a dangling one shows as itself.
-    let meta = if is_symlink { fs::metadata(path).unwrap_or(link) } else { link };
+    let meta = if is_symlink {
+        fs::metadata(path).unwrap_or(link)
+    } else {
+        link
+    };
     let name = path.file_name()?.to_string_lossy().into_owned();
     let is_dir = meta.is_dir();
     let size = if is_dir {
@@ -101,7 +109,11 @@ pub fn entry(path: &Path) -> Option<Entry> {
         .map(|d| d.as_millis() as f64);
     Some(Entry {
         hidden: name.starts_with('.'),
-        kind: if is_dir { Kind::Folder } else { Kind::from_name(&name) },
+        kind: if is_dir {
+            Kind::Folder
+        } else {
+            Kind::from_name(&name)
+        },
         name,
         path: path.to_path_buf(),
         is_dir,

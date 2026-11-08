@@ -3,8 +3,13 @@
   "mainBinaryName": "uwufiles",
   "bundle": {
     "linux": {
-      "deb": { "desktopTemplate": "linux/uwufiles.desktop" },
-      "rpm": { "desktopTemplate": "linux/uwufiles.desktop" }
-    }
+      "deb": {
+        "desktopTemplate": "linux/uwufiles.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "linux/uwufiles.desktop"
+      }
+    },
+    "createUpdaterArtifacts": false
   }
 }

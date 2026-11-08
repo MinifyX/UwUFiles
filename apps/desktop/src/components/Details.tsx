@@ -31,7 +31,11 @@ export function Details({
       {selected.length > 1 ? (
         <Many entries={selected} />
       ) : subject ? (
-        <One entry={subject} itemsInFolder={one ? null : count} onOpen={one ? () => onOpen(one) : undefined} />
+        <One
+          entry={subject}
+          itemsInFolder={one ? null : count}
+          onOpen={one ? () => onOpen(one) : undefined}
+        />
       ) : (
         <div className="grid flex-1 place-items-center text-center text-meta text-muted">
           <div className="flex flex-col items-center gap-3">
@@ -73,7 +77,12 @@ function One({
     ) : entry.kind === 'audio' ? (
       <audio src={fileUrl(entry.path)} controls className="w-full" />
     ) : (
-      <span className={cx('mx-auto grid size-32 place-items-center rounded-[28%]', KIND_TINT[entry.kind])}>
+      <span
+        className={cx(
+          'mx-auto grid size-32 place-items-center rounded-[28%]',
+          KIND_TINT[entry.kind],
+        )}
+      >
         <Icon icon={KIND_ICON[entry.kind]} size="xl" style={{ width: 56, height: 56 }} />
       </span>
     );
@@ -87,7 +96,14 @@ function One({
       </div>
       <dl className="flex flex-col gap-2.5 rounded-card border border-hairline bg-surface p-4 text-meta">
         {entry.isDir ? (
-          <Fact label="Inhalt" value={itemsInFolder != null ? formatCount(itemsInFolder, 'Element', 'Elemente') : sizeText(entry)} />
+          <Fact
+            label="Inhalt"
+            value={
+              itemsInFolder != null
+                ? formatCount(itemsInFolder, 'Element', 'Elemente')
+                : sizeText(entry)
+            }
+          />
         ) : (
           <Fact label="Größe" value={entry.size != null ? formatBytes(entry.size) : '–'} />
         )}
@@ -114,11 +130,18 @@ function One({
           />
         )}
         <Fact label="Geändert" value={formatDate(entry.modified)} />
-        <Fact label="Ort" value={<span className="selectable font-mono text-caption break-all">{entry.path}</span>} />
+        <Fact
+          label="Ort"
+          value={<span className="selectable font-mono text-caption break-all">{entry.path}</span>}
+        />
         {entry.isSymlink && <Fact label="Verknüpfung" value="Ja" />}
       </dl>
       {onOpen && (
-        <Button variant="primary" icon={entry.isDir ? ICONS.folderOpen : ICONS.openExternal} onClick={onOpen}>
+        <Button
+          variant="primary"
+          icon={entry.isDir ? ICONS.folderOpen : ICONS.openExternal}
+          onClick={onOpen}
+        >
           Öffnen
         </Button>
       )}
@@ -136,7 +159,10 @@ function Many({ entries }: { entries: Entry[] }) {
         {entries.slice(0, 3).map((e, i) => (
           <span
             key={e.path}
-            className={cx('absolute grid size-24 place-items-center rounded-[28%] border-2 border-surface shadow-sm', KIND_TINT[e.kind])}
+            className={cx(
+              'absolute grid size-24 place-items-center rounded-[28%] border-2 border-surface shadow-sm',
+              KIND_TINT[e.kind],
+            )}
             style={{ left: i * 12, top: i * 8, transform: `rotate(${(i - 1) * 6}deg)` }}
           >
             <Icon icon={KIND_ICON[e.kind]} size="xl" style={{ width: 40, height: 40 }} />
@@ -144,9 +170,14 @@ function Many({ entries }: { entries: Entry[] }) {
         ))}
       </div>
       <div className="text-center">
-        <h2 className="text-section font-bold">{formatCount(entries.length, 'Element', 'Elemente')}</h2>
+        <h2 className="text-section font-bold">
+          {formatCount(entries.length, 'Element', 'Elemente')}
+        </h2>
         <p className="mt-0.5 text-meta text-muted">
-          {[folders && formatCount(folders, 'Ordner', 'Ordner'), files.length && formatCount(files.length, 'Datei', 'Dateien')]
+          {[
+            folders && formatCount(folders, 'Ordner', 'Ordner'),
+            files.length && formatCount(files.length, 'Datei', 'Dateien'),
+          ]
             .filter(Boolean)
             .join(', ')}
         </p>

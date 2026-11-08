@@ -42,7 +42,10 @@
       "freezePrototype": true,
       "assetProtocol": {
         "enable": true,
-        "scope": { "allow": ["**"], "requireLiteralLeadingDot": false }
+        "scope": {
+          "allow": ["**"],
+          "requireLiteralLeadingDot": false
+        }
       }
     }
   },
@@ -63,6 +66,13 @@
     "copyright": "© 2026 MinifyX",
     "license": "GPL-3.0-only",
     "shortDescription": "A file manager with cat ears",
-    "longDescription": "The file manager of the UwUSuite: folders, drives, previews, copy and move — in pink."
+    "longDescription": "The file manager of the UwUSuite: folders, drives, previews, copy and move — in pink.",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEIyOEZFMjUzOURBQTE5MzcKUldRM0dhcWRVK0tQc2pzR2pEK2p2QnJPbm5tN1M3bW9JM0ZWRVhXWkVDb2Y1QTNqSmY2aHVRUWkK",
+      "endpoints": ["https://github.com/MinifyX/UwUFiles/releases/latest/download/latest.json"]
+    }
   }
 }

@@ -1,0 +1,140 @@
+name: Release
+
+# A tag `v<version>` builds the Linux packages, signs the AppImage for the
+# updater, and publishes the GitHub release with `latest.json`, the feed every
+# installed copy asks (tauri.conf.json → plugins.updater.endpoints).
+#
+#   1. Bump the version: package.json (root + apps/desktop), Cargo.toml,
+#      tauri.conf.json. `node scripts/version.mjs 0.2.0` does all four.
+#   2. Write release-notes/<version>.md.
+#   3. git tag v<version> && git push --tags
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Check the version and the release notes
+        id: version
+        run: |
+          version=$(node scripts/version.mjs --check)
+          if [[ "$GITHUB_REF" == refs/tags/v* && "${GITHUB_REF#refs/tags/v}" != "$version" ]]; then
+            echo "::error::Tag ${GITHUB_REF#refs/tags/} does not match version $version"
+            exit 1
+          fi
+          test -f "release-notes/$version.md" || { echo "::error::release-notes/$version.md is missing"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  linux:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            name: x64
+            platform: linux-x86_64
+          - runner: ubuntu-22.04-arm
+            name: arm64
+            platform: linux-aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install the system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev rpm xdg-utils
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+
+      # The secrets go in through `env`, never into a `run:` line.
+      - name: Build the .deb, the .rpm and the AppImage
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        working-directory: apps/desktop
+        run: >
+          pnpm tauri build --bundles deb,rpm,appimage
+          -c src-tauri/linux-packages.conf.json
+          -c '{"bundle":{"createUpdaterArtifacts":true}}'
+
+      - name: Collect what the release attaches
+        run: |
+          set -euo pipefail
+          out=dist-release && mkdir -p "$out"
+          b=target/release/bundle
+          cp $b/deb/*.deb "$out/UwUFiles-linux-${{ matrix.name }}.deb"
+          cp $b/rpm/*.rpm "$out/UwUFiles-linux-${{ matrix.name }}.rpm"
+          cp $b/appimage/*.AppImage "$out/UwUFiles-linux-${{ matrix.name }}.AppImage"
+          cp $b/appimage/*.AppImage.sig "$out/UwUFiles-linux-${{ matrix.name }}.AppImage.sig"
+          echo "${{ matrix.platform }}" > "$out/platform-${{ matrix.name }}.txt"
+          ls -la "$out"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-${{ matrix.name }}
+          path: dist-release/*
+          if-no-files-found: error
+
+  publish:
+    needs: [check, linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Write the checksums and the update feed
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/update-feed.mjs "$VERSION" dist > dist/latest.json
+          rm dist/platform-*.txt
+          (cd dist && sha256sum UwUFiles-* > SHA256SUMS.txt)
+          cat dist/latest.json dist/SHA256SUMS.txt
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          name: UwUFiles ${{ needs.check.outputs.version }}
+          body_path: release-notes/${{ needs.check.outputs.version }}.md
+          prerelease: ${{ contains(needs.check.outputs.version, '-') }}
+          files: |
+            dist/UwUFiles-*
+            dist/SHA256SUMS.txt
+            dist/latest.json

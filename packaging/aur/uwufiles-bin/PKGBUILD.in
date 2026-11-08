@@ -1,0 +1,28 @@
+# Maintainer: MinifyX <https://github.com/MinifyX>
+#
+# Written by scripts/pkgbuild.mjs from this template for a release; edit the
+# template, not a rendered copy. @VERSION@, @PKGVER@ and the @SHA256_*@ values
+# come from the release's SHA256SUMS.txt.
+
+pkgname=uwufiles-bin
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc='A file manager with cat ears, from the UwUSuite'
+arch=('x86_64' 'aarch64')
+url='https://github.com/MinifyX/UwUFiles'
+license=('GPL-3.0-only')
+depends=('webkit2gtk-4.1' 'gtk3' 'hicolor-icon-theme' 'xdg-utils')
+optdepends=('konsole: "Im Terminal öffnen" (or any terminal in $TERMINAL)')
+provides=('uwufiles')
+conflicts=('uwufiles')
+options=('!strip' '!debug')
+source_x86_64=("uwufiles-bin-${pkgver}-x86_64.deb::https://github.com/MinifyX/UwUFiles/releases/download/v@VERSION@/UwUFiles-linux-x64.deb")
+source_aarch64=("uwufiles-bin-${pkgver}-aarch64.deb::https://github.com/MinifyX/UwUFiles/releases/download/v@VERSION@/UwUFiles-linux-arm64.deb")
+sha256sums_x86_64=('@SHA256_X86_64@')
+sha256sums_aarch64=('@SHA256_AARCH64@')
+
+# The release's .deb, unpacked: the same files the Debian package installs.
+# pacman owns them here, so the app leaves updating to pacman.
+package() {
+  bsdtar -xf data.tar.* -C "${pkgdir}"
+}

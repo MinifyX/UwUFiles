@@ -20,6 +20,7 @@ interface Props {
   onSelectMany: (paths: string[]) => void;
   onClear: () => void;
   onOpen: (entry: Entry) => void;
+  onOpenInTab: (entry: Entry) => void;
   onContext: (e: MouseEvent, entry: Entry | null) => void;
   onRename: (entry: Entry, name: string) => void;
   onRenameCancel: () => void;
@@ -51,10 +52,17 @@ export function FileView(props: Props) {
         <div
           data-background="1"
           className="grid content-start gap-1.5 p-4"
-          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${TILE[settings.zoom]}px, 1fr))` }}
+          style={{
+            gridTemplateColumns: `repeat(auto-fill, minmax(${TILE[settings.zoom]}px, 1fr))`,
+          }}
         >
           {entries.map((entry) => (
-            <Tile key={entry.path} entry={entry} size={TILE[settings.zoom]} {...itemProps(props, entry)} />
+            <Tile
+              key={entry.path}
+              entry={entry}
+              size={TILE[settings.zoom]}
+              {...itemProps(props, entry)}
+            />
           ))}
         </div>
       ) : (
@@ -89,6 +97,13 @@ function itemProps(props: Props, entry: Entry) {
       }
     },
     onDoubleClick: () => props.onOpen(entry),
+    // A middle click on a folder opens it in a new tab, as in a browser.
+    onAuxClick: (e: MouseEvent) => {
+      if (e.button === 1 && entry.isDir) {
+        e.preventDefault();
+        props.onOpenInTab(entry);
+      }
+    },
     onContextMenu: (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -140,6 +155,7 @@ function Tile(p: ItemProps & { size: number }) {
       onMouseDown={p.onMouseDown}
       onClick={p.onClick}
       onDoubleClick={p.onDoubleClick}
+      onAuxClick={p.onAuxClick}
       onContextMenu={p.onContextMenu}
       onDragStart={p.onDragStart}
       {...drop.handlers}
@@ -157,7 +173,10 @@ function Tile(p: ItemProps & { size: number }) {
       ) : (
         <span
           title={entry.name}
-          className={cx('file-name w-full text-[13px] leading-snug', p.selected ? 'font-semibold text-pink-ink' : 'text-ink')}
+          className={cx(
+            'file-name w-full text-[13px] leading-snug',
+            p.selected ? 'font-semibold text-pink-ink' : 'text-ink',
+          )}
         >
           {entry.name}
         </span>
@@ -194,10 +213,17 @@ function Visual({ entry, size }: { entry: Entry; size: number }) {
   }
   return (
     <span
-      className={cx('relative grid shrink-0 place-items-center rounded-[28%]', KIND_TINT[entry.kind])}
+      className={cx(
+        'relative grid shrink-0 place-items-center rounded-[28%]',
+        KIND_TINT[entry.kind],
+      )}
       style={{ width: size, height: size }}
     >
-      <Icon icon={KIND_ICON[entry.kind]} size={glyph} style={{ width: size * 0.42, height: size * 0.42 }} />
+      <Icon
+        icon={KIND_ICON[entry.kind]}
+        size={glyph}
+        style={{ width: size * 0.42, height: size * 0.42 }}
+      />
       {entry.isSymlink && (
         <span className="absolute right-1 bottom-1 grid size-5 place-items-center rounded-full bg-surface text-muted shadow-sm">
           <Icon icon={ICONS.link} size="xs" />
@@ -286,7 +312,9 @@ function ListView(props: Props) {
             type="button"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={() =>
-              setSettings(s.sortBy === c.by ? { sortAsc: !s.sortAsc } : { sortBy: c.by, sortAsc: true })
+              setSettings(
+                s.sortBy === c.by ? { sortAsc: !s.sortAsc } : { sortBy: c.by, sortAsc: true },
+              )
             }
             className={cx(
               'flex items-center gap-1 hover:text-ink',
@@ -296,7 +324,9 @@ function ListView(props: Props) {
             )}
           >
             {c.label}
-            {s.sortBy === c.by && <Icon icon={ICONS.expand} size="xs" className={s.sortAsc ? '' : 'rotate-180'} />}
+            {s.sortBy === c.by && (
+              <Icon icon={ICONS.expand} size="xs" className={s.sortAsc ? '' : 'rotate-180'} />
+            )}
           </button>
         ))}
       </div>
@@ -320,18 +350,23 @@ function Row(p: ItemProps) {
       onMouseDown={p.onMouseDown}
       onClick={p.onClick}
       onDoubleClick={p.onDoubleClick}
+      onAuxClick={p.onAuxClick}
       onContextMenu={p.onContextMenu}
       onDragStart={p.onDragStart}
       {...drop.handlers}
       className={cx(
         'flex h-9 cursor-default items-center gap-3 rounded-xl px-3 text-[13.5px] transition-colors',
-        p.selected ? 'bg-pink-tint text-pink-ink ring-1 ring-inset ring-pink/45' : 'hover:bg-pink-tint/45',
+        p.selected
+          ? 'bg-pink-tint text-pink-ink ring-1 ring-inset ring-pink/45'
+          : 'hover:bg-pink-tint/45',
         drop.over && 'ring-2 ring-pink',
         p.cut && 'opacity-50',
         entry.hidden && !p.selected && 'opacity-70',
       )}
     >
-      <span className={cx('grid size-6 shrink-0 place-items-center rounded-lg', KIND_TINT[entry.kind])}>
+      <span
+        className={cx('grid size-6 shrink-0 place-items-center rounded-lg', KIND_TINT[entry.kind])}
+      >
         <Icon icon={KIND_ICON[entry.kind]} size="xs" />
       </span>
       <span className="min-w-[140px] flex-1">
@@ -343,9 +378,15 @@ function Row(p: ItemProps) {
           </span>
         )}
       </span>
-      <span className={cx('w-[150px] truncate text-meta text-muted', DATE_COL)}>{formatDate(entry.modified)}</span>
-      <span className="w-[100px] text-right text-meta text-muted tabular-nums">{sizeText(entry)}</span>
-      <span className={cx('w-[110px] truncate text-meta text-muted', KIND_COL)}>{KIND_LABEL[entry.kind]}</span>
+      <span className={cx('w-[150px] truncate text-meta text-muted', DATE_COL)}>
+        {formatDate(entry.modified)}
+      </span>
+      <span className="w-[100px] text-right text-meta text-muted tabular-nums">
+        {sizeText(entry)}
+      </span>
+      <span className={cx('w-[110px] truncate text-meta text-muted', KIND_COL)}>
+        {KIND_LABEL[entry.kind]}
+      </span>
     </div>
   );
 }
@@ -390,7 +431,12 @@ function useRubberBand(
       const y = ev.clientY - origin.top + el.scrollTop;
       if (!moved && Math.hypot(x - sx, y - sy) < 4) return;
       moved = true;
-      const r = { x: Math.min(sx, x), y: Math.min(sy, y), w: Math.abs(x - sx), h: Math.abs(y - sy) };
+      const r = {
+        x: Math.min(sx, x),
+        y: Math.min(sy, y),
+        w: Math.abs(x - sx),
+        h: Math.abs(y - sy),
+      };
       setRect(r);
       const hits: string[] = [];
       el.querySelectorAll<HTMLElement>('[data-path]').forEach((item) => {

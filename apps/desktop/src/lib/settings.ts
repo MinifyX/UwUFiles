@@ -3,7 +3,7 @@
  * `bootScript()` reads in main.tsx, so the first paint is already in the right theme.
  */
 
-import type { ThemeSetting } from '@uwusuite/design';
+import type { ContrastSetting, MotionSetting, ThemeSetting } from '@uwusuite/design';
 import { useSyncExternalStore } from 'react';
 
 export const SETTINGS_KEY = 'uwufiles-settings';
@@ -13,6 +13,16 @@ export type SortBy = 'name' | 'size' | 'modified' | 'kind';
 
 export interface Settings {
   theme: ThemeSetting;
+  contrast: ContrastSetting;
+  motion: MotionSetting;
+  /** Where a new window starts: the home folder, or the folders open when it was closed. */
+  startup: 'home' | 'restore';
+  /** The tabs of the last session, for `startup: 'restore'`. */
+  lastTabs: string[];
+  /** Ask before moving to the trash. */
+  confirmTrash: boolean;
+  /** Look for a new version on start. */
+  checkUpdates: boolean;
   view: ViewMode;
   /** Tile size in the grid view: 0 small, 1 medium, 2 big. */
   zoom: 0 | 1 | 2;
@@ -27,6 +37,12 @@ export interface Settings {
 
 const DEFAULTS: Settings = {
   theme: 'system',
+  contrast: 'system',
+  motion: 'system',
+  startup: 'home',
+  lastTabs: [],
+  confirmTrash: false,
+  checkUpdates: true,
   view: 'grid',
   zoom: 1,
   showHidden: false,

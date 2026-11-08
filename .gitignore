@@ -30,3 +30,10 @@ backups/
 
 # Agent worktrees
 .claude/worktrees/
+
+# Rendered from PKGBUILD.in by scripts/pkgbuild.mjs, and what makepkg leaves behind
+packaging/aur/uwufiles-bin/PKGBUILD
+packaging/aur/uwufiles-bin/*.deb
+packaging/aur/uwufiles-bin/*.pkg.tar.zst
+packaging/aur/uwufiles-bin/src/
+packaging/aur/uwufiles-bin/pkg/

@@ -17,6 +17,10 @@ pub enum Error {
     InvalidName(String),
     #[error("Ein Ordner kann nicht in sich selbst kopiert oder verschoben werden.")]
     IntoItself,
+    #[error("Abgebrochen.")]
+    Cancelled,
+    #[error("Keine Anwendung kann „{0}“ öffnen.")]
+    NoApp(String),
     #[error("Papierkorb: {0}")]
     Trash(String),
     #[error("{}: {source}", .path.display())]
@@ -41,7 +45,10 @@ impl Error {
 }
 
 impl Serialize for Error {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.to_string())
     }
 }

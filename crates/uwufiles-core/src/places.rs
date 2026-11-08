@@ -28,7 +28,11 @@ pub struct Drive {
 pub fn places() -> Vec<Place> {
     let mut out = Vec::new();
     if let Some(home) = dirs::home_dir() {
-        out.push(Place { name: "Persönlicher Ordner".into(), path: home, icon: "home" });
+        out.push(Place {
+            name: "Persönlicher Ordner".into(),
+            path: home,
+            icon: "home",
+        });
     }
     let xdg: [(Option<PathBuf>, &str, &'static str); 6] = [
         (dirs::desktop_dir(), "Desktop", "desktop"),
@@ -40,7 +44,9 @@ pub fn places() -> Vec<Place> {
     ];
     let home = dirs::home_dir();
     for (path, fallback, icon) in xdg {
-        let Some(path) = path.filter(|p| p.is_dir()) else { continue };
+        let Some(path) = path.filter(|p| p.is_dir()) else {
+            continue;
+        };
         // An unset XDG folder points at $HOME; that one is already there.
         if Some(&path) == home.as_ref() {
             continue;
@@ -61,17 +67,23 @@ pub fn drives() -> Vec<Drive> {
     let mut out: Vec<Drive> = Vec::new();
     for line in mounts.lines() {
         let mut fields = line.split_whitespace();
-        let (Some(device), Some(point)) = (fields.next(), fields.next()) else { continue };
+        let (Some(device), Some(point)) = (fields.next(), fields.next()) else {
+            continue;
+        };
         let point = unescape_mount(point);
         let is_root = point == "/";
-        let user_mount = ["/run/media/", "/media/", "/mnt/"].iter().any(|p| point.starts_with(p));
+        let user_mount = ["/run/media/", "/media/", "/mnt/"]
+            .iter()
+            .any(|p| point.starts_with(p));
         if !(is_root || user_mount) || !device.starts_with('/') {
             continue;
         }
         if out.iter().any(|d| d.path == Path::new(&point)) {
             continue;
         }
-        let Some((total_bytes, free_bytes)) = space(Path::new(&point)) else { continue };
+        let Some((total_bytes, free_bytes)) = space(Path::new(&point)) else {
+            continue;
+        };
         let name = if is_root {
             "System".to_string()
         } else {
@@ -80,7 +92,13 @@ pub fn drives() -> Vec<Drive> {
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_else(|| point.clone())
         };
-        out.push(Drive { name, path: PathBuf::from(&point), total_bytes, free_bytes, removable: !is_root });
+        out.push(Drive {
+            name,
+            path: PathBuf::from(&point),
+            total_bytes,
+            free_bytes,
+            removable: !is_root,
+        });
     }
     out
 }

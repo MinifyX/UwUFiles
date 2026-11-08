@@ -44,9 +44,24 @@ export function Toolbar(props: Props) {
   return (
     <div className="flex items-center gap-2 px-4 py-2.5">
       <div className="flex items-center gap-0.5">
-        <IconButton icon={ICONS.previous} label="Zurück (Alt+←)" disabled={!props.canBack} onClick={props.onBack} />
-        <IconButton icon={ICONS.next} label="Vor (Alt+→)" disabled={!props.canForward} onClick={props.onForward} />
-        <IconButton icon={ICONS.parentFolder} label="Übergeordneter Ordner (Alt+↑)" disabled={!props.canUp} onClick={props.onUp} />
+        <IconButton
+          icon={ICONS.previous}
+          label="Zurück (Alt+←)"
+          disabled={!props.canBack}
+          onClick={props.onBack}
+        />
+        <IconButton
+          icon={ICONS.next}
+          label="Vor (Alt+→)"
+          disabled={!props.canForward}
+          onClick={props.onForward}
+        />
+        <IconButton
+          icon={ICONS.parentFolder}
+          label="Übergeordneter Ordner (Alt+↑)"
+          disabled={!props.canUp}
+          onClick={props.onUp}
+        />
       </div>
 
       <PathBar path={props.path} home={props.home} onOpen={props.onOpen} focus={props.focusPath} />
@@ -83,7 +98,13 @@ export function Toolbar(props: Props) {
       <Menu
         align="end"
         trigger={({ toggle, open, ...aria }) => (
-          <IconButton {...aria} active={open} onClick={toggle} icon={ICONS.sort} label="Sortieren und Ansicht" />
+          <IconButton
+            {...aria}
+            active={open}
+            onClick={toggle}
+            icon={ICONS.sort}
+            label="Sortieren und Ansicht"
+          />
         )}
         items={[
           ...SORTS.map((o) => ({
@@ -92,8 +113,16 @@ export function Toolbar(props: Props) {
             onSelect: () => setSettings({ sortBy: o.by }),
           })),
           'separator' as const,
-          { label: 'Aufsteigend', icon: check(s.sortAsc), onSelect: () => setSettings({ sortAsc: true }) },
-          { label: 'Absteigend', icon: check(!s.sortAsc), onSelect: () => setSettings({ sortAsc: false }) },
+          {
+            label: 'Aufsteigend',
+            icon: check(s.sortAsc),
+            onSelect: () => setSettings({ sortAsc: true }),
+          },
+          {
+            label: 'Absteigend',
+            icon: check(!s.sortAsc),
+            onSelect: () => setSettings({ sortAsc: false }),
+          },
           'separator' as const,
           {
             label: 'Ordner zuerst',
@@ -112,7 +141,11 @@ export function Toolbar(props: Props) {
           },
         ]}
       />
-      <IconButton icon={ICONS.newFolder} label="Neuer Ordner (Strg+Umschalt+N)" onClick={props.onNewFolder} />
+      <IconButton
+        icon={ICONS.newFolder}
+        label="Neuer Ordner (Strg+Umschalt+N)"
+        onClick={props.onNewFolder}
+      />
       <IconButton icon={ICONS.refresh} label="Neu laden (F5)" onClick={props.onRefresh} />
     </div>
   );
@@ -193,7 +226,9 @@ function PathBar({
               onClick={() => onOpen(c.path)}
               className={cx(
                 'flex h-7 items-center gap-1.5 rounded-full px-2.5 text-meta transition-colors',
-                last ? 'bg-pink-tint font-semibold text-pink-ink' : 'text-muted hover:bg-pink-tint/50 hover:text-ink',
+                last
+                  ? 'bg-pink-tint font-semibold text-pink-ink'
+                  : 'text-muted hover:bg-pink-tint/50 hover:text-ink',
               )}
             >
               {i === 0 && <Icon icon={c.name === 'System' ? ICONS.drive : ICONS.home} size="xs" />}

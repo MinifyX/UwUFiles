@@ -1,7 +1,7 @@
 import { cx, Icon, ICONS } from '@uwusuite/design';
 import type { LucideIcon } from 'lucide-react';
 import type { DragEvent, ReactNode } from 'react';
-import type { Sidebar as SidebarData } from '../lib/api';
+import { TRASH, type Sidebar as SidebarData } from '../lib/api';
 import { baseName, formatBytes } from '../lib/format';
 import { PLACE_ICON, REMOVABLE_ICON } from '../lib/icons';
 
@@ -10,13 +10,23 @@ interface Props {
   favorites: string[];
   current: string;
   onOpen: (path: string) => void;
+  /** Middle click: in a new tab. */
+  onOpenInTab: (path: string) => void;
   onUnpin: (path: string) => void;
   /** Something dragged from the file view was dropped on a place. */
   onDropPaths: (dest: string, e: DragEvent) => void;
 }
 
 /** Orte, Favoriten, Laufwerke. Rows are 36 px, the active one pink (docs/components.md). */
-export function Sidebar({ data, favorites, current, onOpen, onUnpin, onDropPaths }: Props) {
+export function Sidebar({
+  data,
+  favorites,
+  current,
+  onOpen,
+  onOpenInTab,
+  onUnpin,
+  onDropPaths,
+}: Props) {
   return (
     <nav
       aria-label="Orte"
@@ -30,6 +40,7 @@ export function Sidebar({ data, favorites, current, onOpen, onUnpin, onDropPaths
             label={p.name}
             active={current === p.path}
             onClick={() => onOpen(p.path)}
+            onMiddle={() => onOpenInTab(p.path)}
             onDrop={(e) => onDropPaths(p.path, e)}
           />
         ))}
@@ -37,8 +48,8 @@ export function Sidebar({ data, favorites, current, onOpen, onUnpin, onDropPaths
           <Row
             icon={ICONS.delete}
             label="Papierkorb"
-            active={current === data.trash}
-            onClick={() => onOpen(data.trash!)}
+            active={current === TRASH}
+            onClick={() => onOpen(TRASH)}
           />
         )}
       </Group>
@@ -53,6 +64,7 @@ export function Sidebar({ data, favorites, current, onOpen, onUnpin, onDropPaths
               title={path}
               active={current === path}
               onClick={() => onOpen(path)}
+              onMiddle={() => onOpenInTab(path)}
               onDrop={(e) => onDropPaths(path, e)}
               aside={
                 <button
@@ -85,6 +97,7 @@ export function Sidebar({ data, favorites, current, onOpen, onUnpin, onDropPaths
                 title={`${d.path} · ${formatBytes(d.freeBytes)} frei von ${formatBytes(d.totalBytes)}`}
                 active={current === d.path}
                 onClick={() => onOpen(d.path)}
+                onMiddle={() => onOpenInTab(d.path)}
                 onDrop={(e) => onDropPaths(d.path, e)}
                 below={
                   <span className="mt-1 block h-1 overflow-hidden rounded-full bg-hairline">
@@ -123,12 +136,13 @@ interface RowProps {
   title?: string;
   active: boolean;
   onClick: () => void;
+  onMiddle?: () => void;
   onDrop?: (e: DragEvent) => void;
   aside?: ReactNode;
   below?: ReactNode;
 }
 
-function Row({ icon, label, title, active, onClick, onDrop, aside, below }: RowProps) {
+function Row({ icon, label, title, active, onClick, onMiddle, onDrop, aside, below }: RowProps) {
   return (
     <div
       role="button"
@@ -136,6 +150,12 @@ function Row({ icon, label, title, active, onClick, onDrop, aside, below }: RowP
       title={title ?? label}
       aria-current={active ? 'page' : undefined}
       onClick={onClick}
+      onAuxClick={(e) => {
+        if (e.button === 1 && onMiddle) {
+          e.preventDefault();
+          onMiddle();
+        }
+      }}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
       onDragOver={onDrop ? (e) => e.preventDefault() : undefined}
       onDrop={

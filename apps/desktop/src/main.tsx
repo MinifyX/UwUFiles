@@ -23,7 +23,10 @@ if (!import.meta.env.DEV) {
 }
 
 // Opened in a plain browser during development: answer the Rust commands with sample data.
-if (import.meta.env.DEV && !('__TAURI_INTERNALS__' in window && (window as any).__TAURI_INTERNALS__.metadata)) {
+if (
+  import.meta.env.DEV &&
+  !('__TAURI_INTERNALS__' in window && (window as any).__TAURI_INTERNALS__.metadata)
+) {
   (await import('./lib/mock')).installMock();
 }
 

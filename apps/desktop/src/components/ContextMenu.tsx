@@ -50,9 +50,12 @@ export function ContextMenu({
         onClose();
       } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const buttons = [...(ref.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
+        const buttons = [
+          ...(ref.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []),
+        ];
         const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
-        const next = buttons[(i + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length];
+        const next =
+          buttons[(i + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length];
         next?.focus();
       }
     };
