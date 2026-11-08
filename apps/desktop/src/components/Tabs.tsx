@@ -1,6 +1,6 @@
 import { cx, Icon, ICONS } from '@uwusuite/design';
 import { TRASH } from '../lib/api';
-import { baseName } from '../lib/format';
+import { baseName, rootFor } from '../lib/format';
 
 export interface Tab {
   id: string;
@@ -11,11 +11,13 @@ export interface Tab {
 export function tabTitle(path: string, home: string | null) {
   if (path === TRASH) return 'Papierkorb';
   if (path === home) return 'Persönlicher Ordner';
+  const root = rootFor(path);
+  if (root && root.path === path) return root.name;
   return baseName(path) || '/';
 }
 
 /**
- * The tabs in the title bar. Active tabs carry the suite's pink top inset (docs/components.md);
+ * The tabs in the title bar. The active tab sits light on the bar with a pink folder;
  * the close button shows on hover, a middle click closes too. None of this is a drag region.
  */
 export function Tabs({
@@ -34,10 +36,12 @@ export function Tabs({
   onNew: () => void;
 }) {
   return (
-    <div role="tablist" aria-label="Tabs" className="flex h-full min-w-0 items-end gap-1 pl-4">
-      {tabs.map((tab) => {
+    <div role="tablist" aria-label="Tabs" className="flex h-full min-w-0 items-center gap-1 pl-5">
+      {tabs.map((tab, i) => {
         const on = tab.id === active;
         const title = tabTitle(tab.path, home);
+        // A thin line between two quiet tabs, gone next to the active one (as in a browser).
+        const divider = i > 0 && !on && tabs[i - 1]!.id !== active;
         return (
           <div
             key={tab.id}
@@ -53,16 +57,20 @@ export function Tabs({
               }
             }}
             className={cx(
-              'group flex h-[30px] max-w-[200px] min-w-[96px] shrink cursor-default items-center gap-2 rounded-t-xl pr-1.5 pl-3 text-meta transition-colors',
+              'group relative flex h-[30px] w-[190px] min-w-[72px] shrink cursor-default items-center gap-2 rounded-[10px] pr-1 pl-2.5 text-[12.5px] transition-[background-color,color,box-shadow] duration-150',
               on
-                ? 'bg-canvas font-semibold text-ink shadow-[inset_0_2px_0_var(--uwu-pink)]'
-                : 'text-muted hover:bg-pink-tint/45 hover:text-ink',
+                ? 'bg-surface font-semibold text-ink shadow-[0_0_0_1px_var(--uwu-hairline),0_1px_3px_rgb(0_0_0/0.06)]'
+                : 'text-muted hover:bg-surface/55 hover:text-ink',
+              divider &&
+                'before:absolute before:top-2 before:bottom-2 before:-left-[3px] before:w-px before:bg-hairline group-hover:before:opacity-0',
             )}
           >
             <Icon
-              icon={tab.path === TRASH ? ICONS.delete : ICONS.folder}
+              icon={
+                tab.path === TRASH ? ICONS.delete : rootFor(tab.path) ? ICONS.server : ICONS.folder
+              }
               size="xs"
-              className={on ? 'text-pink-ink' : ''}
+              className={cx('shrink-0', on ? 'text-pink-ink' : 'text-faint group-hover:text-muted')}
             />
             <span className="min-w-0 flex-1 truncate">{title}</span>
             {tabs.length > 1 && (
@@ -73,7 +81,7 @@ export function Tabs({
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => onClose(tab.id)}
                 className={cx(
-                  'grid size-5 shrink-0 place-items-center rounded-full hover:bg-pink-tint hover:text-ink',
+                  'grid size-[22px] shrink-0 place-items-center rounded-md text-muted hover:bg-pink-tint hover:text-pink-ink',
                   on
                     ? 'opacity-100'
                     : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
@@ -90,9 +98,9 @@ export function Tabs({
         onClick={onNew}
         aria-label="Neuer Tab"
         title="Neuer Tab (Strg+T)"
-        className="mb-[3px] grid size-6 shrink-0 place-items-center self-end rounded-full text-muted hover:bg-pink-tint/60 hover:text-ink"
+        className="ml-0.5 grid size-[30px] shrink-0 place-items-center rounded-[10px] text-muted transition-colors hover:bg-surface/55 hover:text-ink"
       >
-        <Icon icon={ICONS.add} size="xs" />
+        <Icon icon={ICONS.add} size="sm" />
       </button>
     </div>
   );

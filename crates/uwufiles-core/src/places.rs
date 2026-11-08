@@ -67,10 +67,15 @@ pub fn drives() -> Vec<Drive> {
     let mut out: Vec<Drive> = Vec::new();
     for line in mounts.lines() {
         let mut fields = line.split_whitespace();
-        let (Some(device), Some(point)) = (fields.next(), fields.next()) else {
+        let (Some(device), Some(point), Some(kind)) = (fields.next(), fields.next(), fields.next())
+        else {
             continue;
         };
-        let point = unescape_mount(point);
+        // Network shares get their own group in the sidebar (see `network::mounted`).
+        if matches!(kind, "cifs" | "smb3" | "nfs" | "nfs4") {
+            continue;
+        }
+        let point = crate::network::unescape_octal(point);
         let is_root = point == "/";
         let user_mount = ["/run/media/", "/media/", "/mnt/"]
             .iter()
@@ -126,24 +131,4 @@ pub fn space(path: &Path) -> Option<(u64, u64)> {
 #[cfg(not(unix))]
 pub fn space(_path: &Path) -> Option<(u64, u64)> {
     None
-}
-
-/// /proc/mounts writes a space as `\040`, a tab as `\011` and so on.
-#[cfg(target_os = "linux")]
-fn unescape_mount(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'\\' && i + 3 < bytes.len() {
-            if let Ok(n) = u8::from_str_radix(&s[i + 1..i + 4], 8) {
-                out.push(n);
-                i += 4;
-                continue;
-            }
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
 }

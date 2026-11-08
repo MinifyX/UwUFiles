@@ -27,24 +27,28 @@ import {
   type ConflictQuestion,
 } from './components/Dialogs';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ConnectDialog, type ConnectRequest } from './components/Network';
 import { DRAG_TYPE, Pane, type NavRequest } from './components/Pane';
 import { SettingsDialog } from './components/SettingsDialog';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, type ShareRow } from './components/Sidebar';
 import { Tabs, tabTitle, type Tab } from './components/Tabs';
 import {
   api,
   errorText,
+  mountSource,
   onOpenFolder,
   onTransferProgress,
   TRASH,
   type Conflict,
+  type Connected,
   type Entry,
+  type Mounted,
   type Sidebar as SidebarData,
   type TransferMode,
   type TransferProgress,
 } from './lib/api';
-import { baseName, formatBytes, formatCount, parentOf } from './lib/format';
-import { setSettings, useSettings } from './lib/settings';
+import { baseName, formatBytes, formatCount, parentOf, SEP, setRoots } from './lib/format';
+import { setSettings, useSettings, type SavedShare } from './lib/settings';
 import type { Clipboard, Shell } from './lib/shell';
 import { checkForUpdate } from './lib/updates';
 
@@ -75,6 +79,10 @@ export function App() {
   const [confirmQ, setConfirmQ] = useState<ConfirmQuestion | null>(null);
   const [openWith, setOpenWith] = useState<string[] | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [connectQ, setConnectQ] = useState<ConnectRequest | null>(null);
+  /** Shares connected in this session, by id (kernel mounts are also found in `sidebar.network`). */
+  const [connected, setConnected] = useState<Record<string, Connected>>({});
+  const [connecting, setConnecting] = useState<Set<string>>(new Set());
 
   const home = sidebar?.places[0]?.path ?? null;
   const activeTab = tabs.find((t) => t.id === active);
@@ -293,6 +301,127 @@ export function App() {
     [settings, sidebar, home, clipboard, transfer, trash, confirm, addTab, changed],
   );
 
+  // ---- network shares --------------------------------------------------------------------
+
+  const mountOf = useCallback(
+    (s: SavedShare): Mounted | undefined =>
+      sidebar?.network.find((m) => m.source.replace(/\/+$/, '') === mountSource(s)),
+    [sidebar],
+  );
+
+  const shareRows: ShareRow[] = settings.shares.map((share) => {
+    const mine = connected[share.id];
+    const mount = mountOf(share);
+    return {
+      share,
+      path: mine?.path ?? mount?.path ?? null,
+      how:
+        mine?.how ??
+        (mount ? `${share.protocol.toUpperCase()} ${mount.version ?? ''}`.trim() : undefined),
+      connecting: connecting.has(share.id),
+    };
+  });
+  const otherMounts =
+    sidebar?.network.filter(
+      (m) =>
+        !shareRows.some((r) => r.path === m.path) && !settings.shares.some((s) => mountOf(s) === m),
+    ) ?? [];
+
+  // The path bar and tabs call a share's folder by the share's name.
+  setRoots(
+    shareRows
+      .flatMap((r) => (r.path ? [{ path: r.path, name: r.share.label }] : []))
+      .concat(otherMounts.map((m) => ({ path: m.path, name: baseName(m.path) || m.path }))),
+  );
+
+  const saveShare = (share: SavedShare, where: Connected) => {
+    setConnected((c) => ({ ...c, [share.id]: where }));
+    setSettings((s) => ({
+      shares: s.shares.some((x) => x.id === share.id)
+        ? s.shares.map((x) => (x.id === share.id ? share : x))
+        : [...s.shares, share],
+    }));
+  };
+
+  const openShare = async (row: ShareRow, inTab: boolean) => {
+    const show = (path: string) => (inTab ? addTab(path) : goTo(path));
+    if (row.path) return show(row.path);
+    const { share } = row;
+    setConnecting((c) => new Set(c).add(share.id));
+    try {
+      const where = await api.networkConnect(share, null, false);
+      saveShare(share, where);
+      setRoots([{ path: where.path, name: share.label }]);
+      show(where.path);
+      toasts.show(`„${share.label}“ ist verbunden (${where.how})`, { tone: 'success' });
+    } catch (e) {
+      const text = errorText(e);
+      if (text === 'Abgebrochen.') return;
+      // No password in the keyring, or a wrong one: ask, with the form filled in.
+      if (share.protocol === 'smb' && /Passwort|Benutzer/.test(text))
+        setConnectQ({ share, error: text });
+      else fail(e);
+    } finally {
+      setConnecting((c) => {
+        const next = new Set(c);
+        next.delete(share.id);
+        return next;
+      });
+    }
+  };
+
+  /** Tabs inside `path` go home, so none is left showing a folder that is gone. */
+  const leave = (path: string) => {
+    const inside = (p: string) => p === path || p.startsWith(path + SEP);
+    setNav((n) => {
+      const next = { ...n };
+      for (const t of tabs)
+        if (inside(t.path)) next[t.id] = { path: home ?? '/', n: (n[t.id]?.n ?? 0) + 1 };
+      return next;
+    });
+  };
+
+  const unmount = async (path: string, label: string) => {
+    leave(path);
+    try {
+      await api.networkDisconnect(path);
+      toasts.show(`„${label}“ ist getrennt`);
+      return true;
+    } catch (e) {
+      fail(e);
+      return false;
+    } finally {
+      api.sidebar().then(setSidebar, () => {});
+    }
+  };
+
+  const disconnectShare = async (row: ShareRow) => {
+    if (!row.path) return;
+    if (await unmount(row.path, row.share.label))
+      setConnected(({ [row.share.id]: _, ...rest }) => rest);
+  };
+
+  const forgetShare = async (row: ShareRow) => {
+    const { share } = row;
+    const nfs = share.protocol === 'nfs';
+    const ok = await confirm(
+      `„${share.label}“ entfernen?`,
+      nfs
+        ? 'Die Freigabe verschwindet aus der Seitenleiste und aus /etc/fstab, dafür fragt das System nach dem Admin-Passwort. Auf dem NAS bleibt alles, wie es ist.'
+        : 'Die Freigabe verschwindet aus der Seitenleiste, ihr Passwort aus dem Schlüsselbund. Auf dem Server bleibt alles, wie es ist.',
+      'Entfernen',
+    );
+    if (!ok) return;
+    try {
+      if (row.path) leave(row.path);
+      await api.networkForget(share);
+      setConnected(({ [share.id]: _, ...rest }) => rest);
+      setSettings((s) => ({ shares: s.shares.filter((x) => x.id !== share.id) }));
+    } catch (e) {
+      if (errorText(e) !== 'Abgebrochen.') fail(e);
+    }
+  };
+
   const dropOnPlace = (dest: string, e: DragEvent) => {
     const raw = e.dataTransfer.getData(DRAG_TYPE);
     if (!raw) return;
@@ -379,6 +508,15 @@ export function App() {
       <div className="flex min-h-0 flex-1">
         <Sidebar
           data={sidebar}
+          network={{
+            shares: shareRows,
+            others: otherMounts,
+            onOpen: openShare,
+            onDisconnect: disconnectShare,
+            onForget: forgetShare,
+            onUnmount: (m) => unmount(m.path, baseName(m.path)),
+            onAdd: () => setConnectQ({}),
+          }}
           favorites={settings.favorites}
           current={activeTab?.path ?? ''}
           onOpen={goTo}
@@ -409,6 +547,18 @@ export function App() {
 
       <ConflictDialog q={conflictQ} />
       <ConfirmDialog q={confirmQ} />
+      <ConnectDialog
+        request={connectQ}
+        onClose={() => setConnectQ(null)}
+        onConnected={(share, where) => {
+          setConnectQ(null);
+          saveShare(share, where);
+          setRoots([{ path: where.path, name: share.label }]);
+          goTo(where.path);
+          api.sidebar().then(setSidebar, () => {});
+          toasts.show(`„${share.label}“ ist verbunden (${where.how})`, { tone: 'success' });
+        }}
+      />
       <OpenWithDialog paths={openWith} onClose={() => setOpenWith(null)} onError={fail} />
       <SettingsDialog
         open={settingsOpen}

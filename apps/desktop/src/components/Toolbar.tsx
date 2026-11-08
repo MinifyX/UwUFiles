@@ -24,6 +24,8 @@ interface Props {
   focusSearch: number;
 }
 
+const CRUMB_ICON = { home: ICONS.home, drive: ICONS.drive, network: ICONS.server };
+
 const SORTS: { by: SortBy; label: string }[] = [
   { by: 'name', label: 'Name' },
   { by: 'modified', label: 'Geändert' },
@@ -231,7 +233,7 @@ function PathBar({
                   : 'text-muted hover:bg-pink-tint/50 hover:text-ink',
               )}
             >
-              {i === 0 && <Icon icon={c.name === 'System' ? ICONS.drive : ICONS.home} size="xs" />}
+              {i === 0 && c.icon && <Icon icon={CRUMB_ICON[c.icon]} size="xs" />}
               {c.name}
             </button>
           </span>

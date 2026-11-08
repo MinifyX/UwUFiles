@@ -21,6 +21,9 @@ pub enum Error {
     Cancelled,
     #[error("Keine Anwendung kann „{0}“ öffnen.")]
     NoApp(String),
+    /// A network share: the sentence says what happened and, where it can, what to do.
+    #[error("{0}")]
+    Network(String),
     #[error("Papierkorb: {0}")]
     Trash(String),
     #[error("{}: {source}", .path.display())]

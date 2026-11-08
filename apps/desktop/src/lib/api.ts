@@ -44,9 +44,47 @@ export interface Drive {
   removable: boolean;
 }
 
+export type Protocol = 'smb' | 'nfs';
+
+/** One network share. SMB: `share` is its name; NFS: the exported path. */
+export interface Share {
+  protocol: Protocol;
+  host: string;
+  share: string;
+  user?: string | null;
+  domain?: string | null;
+}
+
+/** A computer in the network that offers SMB or NFS (found over mDNS). */
+export interface Server {
+  name: string;
+  host: string;
+  protocols: Protocol[];
+}
+
+export interface Export {
+  path: string;
+  clients: string[];
+}
+
+export interface Connected {
+  path: string;
+  /** "NFS 4.2", "SMB über KDE", … */
+  how: string;
+}
+
+/** A share the kernel has mounted. */
+export interface Mounted {
+  path: string;
+  protocol: Protocol;
+  source: string;
+  version: string | null;
+}
+
 export interface Sidebar {
   places: Place[];
   drives: Drive[];
+  network: Mounted[];
   trash: boolean;
 }
 
@@ -104,7 +142,24 @@ export const api = {
   appsFor: (path: string) => invoke<App[]>('apps_for', { path }),
   launchApp: (id: string, paths: string[]) => invoke<void>('launch_app', { id, paths }),
   watchDir: (path: string) => invoke<void>('watch_dir', { path }),
+  networkDiscover: () => invoke<Server[]>('network_discover'),
+  networkExports: (host: string) => invoke<Export[]>('network_exports', { host }),
+  networkShares: (
+    host: string,
+    user: string | null,
+    password: string | null,
+    domain: string | null,
+  ) => invoke<string[]>('network_shares', { host, user, password, domain }),
+  networkConnect: (share: Share, password: string | null, remember: boolean) =>
+    invoke<Connected>('network_connect', { share, password, remember }),
+  networkDisconnect: (path: string) => invoke<void>('network_disconnect', { path }),
+  networkForget: (share: Share) => invoke<void>('network_forget', { share }),
 };
+
+/** How a mount names its source, to tell whether a saved share is the one mounted there. */
+export function mountSource(s: Share) {
+  return s.protocol === 'nfs' ? `${s.host}:${s.share}` : `//${s.host}/${s.share}`;
+}
 
 export const onDirChanged = (cb: (path: string) => void): Promise<UnlistenFn> =>
   listen<string>('dir:changed', (e) => cb(e.payload));
