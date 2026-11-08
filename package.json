@@ -1,0 +1,23 @@
+{
+  "name": "uwufiles",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "packageManager": "pnpm@11.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @uwufiles/desktop tauri dev",
+    "tauri": "pnpm --filter @uwufiles/desktop tauri",
+    "build": "pnpm --filter @uwufiles/desktop tauri build",
+    "icons": "node scripts/brand.mjs && pnpm --filter @uwufiles/desktop exec uwu-icons --brand ../../brand --name uwufiles",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "prettier --check .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}

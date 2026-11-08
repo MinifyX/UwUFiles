@@ -1,0 +1,77 @@
+/*
+ * The suite first (tokens, UwU Sans, base layer, motion, Nyu, title bar), then the few things
+ * UwUFiles needs that are not a utility class: the scroll areas and the rubber-band selection.
+ */
+@import 'tailwindcss';
+@import '@uwusuite/design/tailwind.css';
+
+@source './';
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--uwu-canvas);
+  color: var(--uwu-ink);
+  overflow: hidden;
+}
+
+/* Thin, rounded scroll bars in the suite's colours. */
+.uwu-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--uwu-muted) 45%, transparent) transparent;
+}
+
+/* A file name breaks anywhere, but never grows a tile taller than two lines. */
+.file-name {
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.file-tile[data-selected='true'] .file-name {
+  -webkit-line-clamp: 4;
+}
+
+/* The picture preview fades in once it has loaded instead of popping. */
+.thumb {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.thumb[data-loaded='true'] {
+  opacity: 1;
+}
+
+.rubber-band {
+  position: absolute;
+  border: 1px solid var(--uwu-pink);
+  background: color-mix(in srgb, var(--uwu-pink) 14%, transparent);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.progress-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--uwu-pink-solid) 0 10px,
+    color-mix(in srgb, var(--uwu-pink-solid) 75%, white) 10px 20px
+  );
+  background-size: 28px 28px;
+  animation: stripes 900ms linear infinite;
+}
+
+@keyframes stripes {
+  to {
+    background-position: 28px 0;
+  }
+}
+
+:root[data-motion='reduced'] .progress-stripes {
+  animation: none;
+}

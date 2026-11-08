@@ -1,0 +1,22 @@
+[package]
+name = "uwufiles-core"
+description = "What UwUFiles does to the file system: listing folders, copying, moving, renaming"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+# The user's own folders (Dokumente, Bilder …) in the language of the system.
+dirs = "6"
+# Deleting goes to the trash, never a hard delete.
+trash = "5"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile.workspace = true

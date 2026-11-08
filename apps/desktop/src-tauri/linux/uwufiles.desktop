@@ -1,0 +1,12 @@
+[Desktop Entry]
+Categories={{categories}}
+Comment={{comment}}
+Exec={{exec}} %U
+Icon={{icon}}
+Name=UwUFiles
+GenericName=Dateimanager
+Terminal=false
+Type=Application
+MimeType=inode/directory;
+StartupWMClass={{exec}}
+Keywords=Dateien;Ordner;Dateimanager;Explorer;files;folder;

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "UwUFiles",
+  "version": "0.1.0",
+  "identifier": "app.uwufiles.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1424",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "UwUFiles",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 640,
+        "minHeight": 440,
+        "center": true,
+        "decorations": false,
+        "shadow": true,
+        "resizable": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: asset: http://asset.localhost",
+        "font-src": "'self' data:",
+        "media-src": "'self' asset: http://asset.localhost",
+        "connect-src": "ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'"
+      },
+      "freezePrototype": true,
+      "assetProtocol": {
+        "enable": true,
+        "scope": { "allow": ["**"], "requireLiteralLeadingDot": false }
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "UwUFiles",
+    "homepage": "https://github.com/MinifyX/UwUFiles",
+    "category": "Utility",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "copyright": "© 2026 MinifyX",
+    "license": "GPL-3.0-only",
+    "shortDescription": "A file manager with cat ears",
+    "longDescription": "The file manager of the UwUSuite: folders, drives, previews, copy and move — in pink."
+  }
+}

@@ -1,0 +1,6 @@
+packages:
+  - 'apps/*'
+
+# Vite's bundler: esbuild links its platform binary in an install script.
+allowBuilds:
+  esbuild: true
